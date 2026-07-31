@@ -23,6 +23,8 @@ from bokeh.models import HoverTool, ColumnDataSource
 import argparse
 import sys
 from pathlib import Path
+import zipfile
+import tempfile
 
 def connect_db(db_path):
     """Establishes a connection to the SQLite database."""
@@ -144,11 +146,11 @@ def fetch_heart_rate_data(conn, max_bpm=None):
 def calculate_averages(df):
     """Calculates daily, weekly, and monthly averages."""
     # Resample data into different time bins and calculate the mean
-    # 'D' = Day, 'W' = Week (ending on Sunday), 'ME' = Month End
+    # 'D' = Day, 'W-MON' = Week starting on Monday, 'MS' = Month Start
     # .dropna() removes periods with no data
     daily_avg = df.resample('D').mean().dropna()
-    weekly_avg = df.resample('W').mean().dropna()
-    monthly_avg = df.resample('ME').mean().dropna()
+    weekly_avg = df.resample('W-MON', label='left', closed='left').mean().dropna()
+    monthly_avg = df.resample('MS').mean().dropna()
     
     return daily_avg, weekly_avg, monthly_avg
 
@@ -163,7 +165,7 @@ def output_console(daily, weekly, monthly):
     
     print("\n--- Weekly Average Heart Rate ---")
     # Format index to show 'Year-Week'
-    weekly.index = weekly.index.strftime('%Y - Week %U')
+    weekly.index = weekly.index.strftime('%Y - Week %W')
     print(weekly)
     
     print("\n--- Daily Average Heart Rate ---")
@@ -177,21 +179,27 @@ def output_graph(daily, weekly, monthly):
     # Bokeh works best with ColumnDataSource. Let's prepare the data.
     # We need to reset the index to use the dates as a standard column.
     # If your time column is different, update it here too.
-    daily_source = ColumnDataSource(daily.reset_index().rename(columns={'epoch_millis': 'date', 'beats_per_minute': 'bpm'}))
-    weekly_source = ColumnDataSource(weekly.reset_index().rename(columns={'epoch_millis': 'date', 'beats_per_minute': 'bpm'}))
-    monthly_source = ColumnDataSource(monthly.reset_index().rename(columns={'epoch_millis': 'date', 'beats_per_minute': 'bpm'}))
+    daily_df = daily.reset_index().rename(columns={'epoch_millis': 'date', 'beats_per_minute': 'bpm'})
+    daily_df['date_str'] = daily_df['date'].dt.strftime('%Y-%m-%d')
+    daily_source = ColumnDataSource(daily_df)
+    
+    weekly_df = weekly.reset_index().rename(columns={'epoch_millis': 'date', 'beats_per_minute': 'bpm'})
+    weekly_df['date_str'] = weekly_df['date'].dt.strftime('%Y - Week %W (starting %Y-%m-%d)')
+    weekly_source = ColumnDataSource(weekly_df)
+    
+    monthly_df = monthly.reset_index().rename(columns={'epoch_millis': 'date', 'beats_per_minute': 'bpm'})
+    monthly_df['date_str'] = monthly_df['date'].dt.strftime('%Y-%m')
+    monthly_source = ColumnDataSource(monthly_df)
 
     # Define the tooltips for the hover tool
     tooltips = [
-        ("Date", "@date{%F}"),  # Format date as YYYY-MM-DD
+        ("Type", "$name"),
+        ("Date", "@date_str"),
         ("Avg BPM", "@bpm{0.1f}"), # Format BPM to one decimal place
     ]
 
     # Create a HoverTool instance
-    hover = HoverTool(
-        tooltips=tooltips,
-        formatters={'@date': 'datetime'} # Tell HoverTool the 'date' column is datetime
-    )
+    hover = HoverTool(tooltips=tooltips)
 
     # Create a new plot with a datetime x-axis
     p = figure(
@@ -208,14 +216,14 @@ def output_graph(daily, weekly, monthly):
     p.add_tools(hover)
 
     # Add renderers for each data series
-    p.line(x='date', y='bpm', source=daily_source, legend_label="Daily Avg", color="green", line_dash="dotted", line_width=1)
-    p.circle(x='date', y='bpm', source=daily_source, legend_label="Daily Avg", color="green", size=3, alpha=0.5)
+    p.line(x='date', y='bpm', source=daily_source, legend_label="Daily Avg", color="green", line_dash="dotted", line_width=1, name="Daily Average")
+    p.scatter(x='date', y='bpm', source=daily_source, legend_label="Daily Avg", color="green", size=3, alpha=0.5, name="Daily Average")
 
-    p.line(x='date', y='bpm', source=weekly_source, legend_label="Weekly Avg", color="orange", line_dash="dashed", line_width=2)
-    p.circle(x='date', y='bpm', source=weekly_source, legend_label="Weekly Avg", color="orange", size=5)
+    p.line(x='date', y='bpm', source=weekly_source, legend_label="Weekly Avg", color="orange", line_dash="dashed", line_width=2, name="Weekly Average")
+    p.scatter(x='date', y='bpm', source=weekly_source, legend_label="Weekly Avg", color="orange", size=5, name="Weekly Average")
 
-    p.line(x='date', y='bpm', source=monthly_source, legend_label="Monthly Avg", color="red", line_width=3)
-    p.circle(x='date', y='bpm', source=monthly_source, legend_label="Monthly Avg", color="red", size=7)
+    p.line(x='date', y='bpm', source=monthly_source, legend_label="Monthly Avg", color="red", line_width=3, name="Monthly Average")
+    p.scatter(x='date', y='bpm', source=monthly_source, legend_label="Monthly Avg", color="red", size=7, name="Monthly Average")
 
     # Customize legend
     p.legend.location = "top_left"
@@ -233,7 +241,7 @@ def main():
     parser.add_argument(
         "db_file",
         type=str,
-        help="Path to the Health Connect SQLite database file."
+        help="Path to the Health Connect SQLite database file (or a ZIP archive containing it)."
     )
     parser.add_argument(
         "--max-bpm",
@@ -252,8 +260,26 @@ def main():
     args = parser.parse_args()
     
     conn = None
+    temp_dir = None
     try:
-        conn = connect_db(args.db_file)
+        db_path = args.db_file
+        
+        if Path(db_path).is_file() and zipfile.is_zipfile(db_path):
+            print("Extracting database from ZIP archive...")
+            temp_dir = tempfile.TemporaryDirectory()
+            with zipfile.ZipFile(db_path, 'r') as z:
+                # Find the database file, prioritizing .db or .sqlite
+                db_filename = next((name for name in z.namelist() if name.endswith(('.db', '.sqlite'))), None)
+                if not db_filename and z.namelist():
+                    db_filename = z.namelist()[0]
+                
+                if db_filename:
+                    db_path = z.extract(db_filename, temp_dir.name)
+                else:
+                    print("Error: No files found in the ZIP archive.", file=sys.stderr)
+                    sys.exit(1)
+                    
+        conn = connect_db(db_path)
         
         # --- TEMPORARY DIAGNOSTIC STEP ---
         # Run this once to see the column names, then comment out the next line.
@@ -278,6 +304,8 @@ def main():
     finally:
         if conn:
             conn.close()
+        if temp_dir:
+            temp_dir.cleanup()
 
 if __name__ == "__main__":
     main()
