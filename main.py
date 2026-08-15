@@ -144,14 +144,23 @@ def fetch_heart_rate_data(conn, max_bpm=None):
         return None
 
 def calculate_averages(df):
-    """Calculates daily, weekly, and monthly averages."""
-    # Resample data into different time bins and calculate the mean
-    # 'D' = Day, 'W-MON' = Week starting on Monday, 'MS' = Month Start
+    """Calculates daily, weekly, and monthly averages, excluding incomplete current periods."""
+    # Hierarchical resampling (Minute -> Hour -> Day -> Week/Month) to prevent sampling bias
+    # from high-frequency bursts (e.g. workouts) or unequal day/night sampling rates.
+    # '1min' = 1-Minute buckets, '1h' = 1-Hour buckets, 'D' = Day, 'W' = Week (ending Sunday), 'MS' = Month Start
     # .dropna() removes periods with no data
-    daily_avg = df.resample('D').mean().dropna()
-    weekly_avg = df.resample('W-MON', label='left', closed='left').mean().dropna()
-    monthly_avg = df.resample('MS').mean().dropna()
+    min_avg = df.resample('1min').mean().dropna()
+    hourly_avg = min_avg.resample('1h').mean().dropna()
+    daily_avg = hourly_avg.resample('D').mean().dropna()
+    weekly_avg = daily_avg.resample('W').mean().dropna()
+    monthly_avg = daily_avg.resample('MS').mean().dropna()
     
+    # Exclude incomplete periods at the end of the database export
+    latest_timestamp = df.index.max()
+    daily_avg = daily_avg[daily_avg.index + pd.Timedelta(days=1) <= latest_timestamp]
+    weekly_avg = weekly_avg[weekly_avg.index + pd.Timedelta(days=1) <= latest_timestamp]
+    monthly_avg = monthly_avg[monthly_avg.index + pd.DateOffset(months=1) <= latest_timestamp]
+
     return daily_avg, weekly_avg, monthly_avg
 
 def output_console(daily, weekly, monthly):
@@ -184,7 +193,7 @@ def output_graph(daily, weekly, monthly):
     daily_source = ColumnDataSource(daily_df)
     
     weekly_df = weekly.reset_index().rename(columns={'epoch_millis': 'date', 'beats_per_minute': 'bpm'})
-    weekly_df['date_str'] = weekly_df['date'].dt.strftime('%Y - Week %W (starting %Y-%m-%d)')
+    weekly_df['date_str'] = weekly_df['date'].dt.strftime('%Y - Week %W (ending %Y-%m-%d)')
     weekly_source = ColumnDataSource(weekly_df)
     
     monthly_df = monthly.reset_index().rename(columns={'epoch_millis': 'date', 'beats_per_minute': 'bpm'})
@@ -309,7 +318,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-
-
