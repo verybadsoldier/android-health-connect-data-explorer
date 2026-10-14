@@ -6,12 +6,13 @@
     "configurations": [
 
         {
-            "name": "Python Debugger: Current File",
+            "name": "Python Debugger: App",
             "type": "debugpy",
             "request": "launch",
-            "program": "${file}",
+            "program": "${workspaceFolder}/main.py",
             "console": "integratedTerminal",
-            "args": ["d:/health_connect_export.db", "--output=graph", "--max-bpm=100"]
+            "cwd": "${workspaceFolder}",
+            "args": ["C:/Users/vbs/Meine Ablage/Backup/Health Connect/Health Connect.zip", "--output=graph", "--max-bpm=100"]
         }
     ]
 }

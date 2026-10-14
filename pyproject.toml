@@ -1,10 +1,20 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [project]
-name = "healh-connect-explorer"
+name = "health-connect-explorer"
 version = "0.1.0"
-description = "Add your description here"
+description = "Analyze and visualize heart rate and running data from Android Health Connect exports"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "bokeh>=3.8.0",
     "pandas>=2.3.3",
 ]
+
+[project.scripts]
+health-connect-explorer = "health_connect.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/health_connect"]

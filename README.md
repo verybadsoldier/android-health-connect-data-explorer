@@ -51,14 +51,20 @@ Android's Health Connect "export data" feature gives you a raw SQLite database f
 
 ## Usage
 
-You will need the path to your exported Health Connect database file (e.g., `health-connect-export.db`).
+You will need the path to your exported Health Connect database file (e.g., `health-connect-export.db` or `Health Connect.zip`).
 
 ### To Output Averages to the Console:
 
 This is the default behavior.
 
 ```bash
-python health_analysis.py /path/to/your/health-connect-export.db
+python main.py /path/to/your/health-connect-export.db
+```
+
+Or directly with a ZIP archive:
+
+```bash
+python main.py /path/to/your/Health-Connect.zip
 ```
 
 ### To Generate the Interactive Graph:
@@ -66,29 +72,45 @@ python health_analysis.py /path/to/your/health-connect-export.db
 This will open the graph in your default web browser.
 
 ```bash
-python health_analysis.py /path/to/your/health-connect-export.db --output graph
+python main.py /path/to/your/Health-Connect.zip --output graph
 ```
 
 ### To Filter Data:
 
-Here's how to generate a graph that ignores any heart rate readings above 90 BPM.
+Here's how to generate a graph that ignores any resting heart rate readings above 90 BPM.
 
 ```bash
-python health_analysis.py /path/to/your/health-connect-export.db --output graph --max-bpm 90
+python main.py /path/to/your/Health-Connect.zip --output graph --max-bpm 90
 ```
+
+---
+
+## Project Structure
+
+The project follows a standard Python package layout (`src` layout) with a clean separation of concerns:
+
+* **`main.py`**: Root entry point delegating to the `health_connect` package for backwards compatibility and ease of running directly (`python main.py ...`).
+* **`src/health_connect/`**:
+  * **`db.py`**: SQLite database connection, ZIP archive extraction via context manager, table inspection, and SQL data queries (`fetch_heart_rate_data`, `fetch_running_raw_data`).
+  * **`analysis.py`**: Pure data analytics without DB or plotting dependencies: resting heart rate hierarchical averaging, running efficiency factor (EF), aerobic decoupling (cardiac drift), cadence fallback, stride length, and split calculations.
+  * **`visualization.py`**: Presentation layer for interactive Bokeh tabbed plots (with synchronized time axes, hover tools, and data tables) and formatted console output.
+  * **`cli.py`**: Command-line argument parsing and end-to-end execution pipeline.
+  * **`__main__.py`**: Enables package execution (`python -m health_connect ...` or `health-connect-explorer ...`).
+  * **`heart_rate.py` / `running.py`**: Topic facades for convenience.
+* **`tests/`**: Unit test suite verifying metric computations, pace formatting, and database extraction using standard library `unittest`.
 
 ---
 
 ## **Important: Database Schema**
 
-This script is built assuming the heart rate data is in `heart_rate_record_series_table` with the following columns:
+This script assumes the heart rate data is in `heart_rate_record_series_table` with the following columns:
 
 * **Timestamp column:** `epoch_millis`
 * **Heart rate column:** `beats_per_minute`
 
-If your database export has a different structure, the script will likely fail. If this happens, you will need to edit the `sql_query` variable inside the `fetch_heart_rate_data` function in `health_analysis.py` to match your schema.
+If your database export has a different structure, you will need to edit the `sql_query` variable inside the `fetch_heart_rate_data` function in `src/health_connect/db.py` to match your schema.
 
-A helper function `inspect_table_columns` is included in the script (commented out in `main()`) which you can use to help find the correct column names if needed.
+A helper function `inspect_table_columns` is available in `health_connect.db` to help inspect table schemas if needed.
 
 ## License
 
