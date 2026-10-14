@@ -13,10 +13,17 @@ Android's Health Connect "export data" feature gives you a raw SQLite database f
 * **Direct SQLite Connection:** Reads your `.db` export file directly.
 * **Time-Series Analysis:** Parses your raw heart rate data (`heart_rate_record_series_table`).
 * **Multiple Averages:** Automatically calculates daily, weekly, and monthly heart rate averages.
+* **Running Sessions & Efficiency Analysis:** Automatically detects running sessions (`exercise_session_record_table`) and calculates:
+    * **Efficiency Factor (EF):** $\text{Speed (m/min)} / \text{Avg BPM}$ to track aerobic economy trends over time.
+    * **Aerobic Decoupling ($Pw:HR$ / Drift %):** Compares first-half vs second-half efficiency ($(1 - \text{EF}_2 / \text{EF}_1) \times 100$) with a 5% aerobic decoupling threshold.
+    * **Running Cadence (SPM):** Total and split cadence (steps per minute) calculated from cadence records or step series.
+    * **Stride Length (m):** Total and split stride length in meters calculated from distance and steps / cadence.
+    * **Half-Split Metrics:** Heart rate, speed, cadence, stride length, and efficiency for both the first and second halves of the run.
+    * Duration, distance, pace, speed, and average/max heart rate.
 * **Two Output Modes:**
-    * `console`: Prints clean, formatted tables of your averages right to your terminal.
-    * `graph`: Generates a beautiful, interactive HTML graph using [Bokeh](https://bokeh.org/). The graph includes pan, zoom, and hover tooltips to inspect specific dates.
-* **Data Filtering:** Use the `--max-bpm` flag to easily filter out noise or irrelevant high-intensity readings (e.g., from exercise) to focus on your resting trends.
+    * `console`: Prints clean, formatted tables of resting averages and running sessions with EF, Cardiac Drift, Cadence, and Stride Length.
+    * `graph`: Generates an interactive, responsive tabbed HTML graph using [Bokeh](https://bokeh.org/) with dedicated tabs for **Heart Rate Averages** and **Running Sessions** (with synchronized time axes for EF, Cardiac Drift, Cadence, and Stride Length).
+* **Data Filtering:** Use the `--max-bpm` flag to filter resting trends without affecting running session metrics, or `--no-runs` to exclude running sessions entirely.
 
 ## Installation
 
