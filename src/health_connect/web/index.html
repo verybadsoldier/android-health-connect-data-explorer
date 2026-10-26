@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Health Connect Explorer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="app.css">
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+</head>
+<body>
+  <div class="app-layout">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="header-left">
+        <div class="brand">
+          <div class="brand-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>
+              <path d="M12 5v14"/>
+            </svg>
+          </div>
+          <div class="brand-text">
+            <h1>Health Connect Explorer</h1>
+            <span class="db-badge" id="db-badge">
+              <span class="pulse-dot"></span>
+              <span id="db-name-label">Loading database...</span>
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div class="header-controls">
+        <!-- Max BPM Control -->
+        <div class="control-group">
+          <label for="bpm-slider">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+            </svg>
+            <span>Max Resting BPM:</span>
+            <strong id="bpm-val" class="highlight-val">All</strong>
+          </label>
+          <div class="slider-wrapper">
+            <input type="range" id="bpm-slider" min="50" max="130" step="5" value="130">
+            <button id="bpm-reset-btn" class="icon-btn-tiny" title="Reset max BPM filter">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                <path d="M3 3v5h5"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Date Range Presets -->
+        <div class="segmented-control" id="date-presets">
+          <button class="seg-btn active" data-preset="all">All Time</button>
+          <button class="seg-btn" data-preset="1y">1 Year</button>
+          <button class="seg-btn" data-preset="6m">6 Months</button>
+          <button class="seg-btn" data-preset="30d">30 Days</button>
+        </div>
+
+        <!-- Theme Toggle -->
+        <button id="theme-toggle" class="icon-btn" title="Toggle Theme" aria-label="Toggle Theme">
+          <svg class="sun-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>
+          </svg>
+          <svg class="moon-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Navigation Tabs -->
+    <nav class="app-nav">
+      <div class="tabs-list" role="tablist">
+        <button class="tab-btn active" role="tab" data-tab="tab-overview" id="nav-overview">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+          </svg>
+          <span>Heart Rate Averages</span>
+        </button>
+        <button class="tab-btn" role="tab" data-tab="tab-running" id="nav-running">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="m4 16 3-3 3 3 4-4 6 6"/>
+            <path d="M18 10h4v4"/>
+          </svg>
+          <span>Running Economy & Sessions</span>
+        </button>
+        <button class="tab-btn" role="tab" data-tab="tab-table" id="nav-table">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 3h18v18H3z"/><path d="M3 9h18"/><path d="M3 15h18"/><path d="M9 3v18"/><path d="M15 3v18"/>
+          </svg>
+          <span>Sessions Explorer</span>
+        </button>
+        <button class="tab-btn" role="tab" data-tab="tab-bokeh" id="nav-bokeh">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect width="20" height="14" x="2" y="3" rx="2" ry="2"/>
+            <line x1="8" x2="16" y1="21" y2="21"/>
+            <line x1="12" x2="12" y1="17" y2="21"/>
+          </svg>
+          <span>Native Bokeh View</span>
+        </button>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="app-main">
+      <!-- Loading State -->
+      <div id="loading-overlay" class="loading-overlay">
+        <div class="spinner"></div>
+        <p>Analyzing Health Connect export data...</p>
+      </div>
+
+      <!-- TAB 1: Heart Rate Averages -->
+      <section id="tab-overview" class="tab-panel active">
+        <!-- KPI Cards -->
+        <div class="kpi-grid">
+          <div class="kpi-card accent-rose">
+            <div class="kpi-header">
+              <span class="kpi-label">Average Resting HR</span>
+              <div class="kpi-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>
+                </svg>
+              </div>
+            </div>
+            <div class="kpi-value"><span id="kpi-avg-hr">--</span> <small>BPM</small></div>
+            <div class="kpi-subtext" id="kpi-hr-subtext">Overall baseline</div>
+          </div>
+
+          <div class="kpi-card accent-emerald">
+            <div class="kpi-header">
+              <span class="kpi-label">Lowest Resting HR</span>
+              <div class="kpi-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="m3 16 6-6 4 4 8-8"/>
+                  <path d="M17 6h4v4"/>
+                </svg>
+              </div>
+            </div>
+            <div class="kpi-value"><span id="kpi-min-hr">--</span> <small>BPM</small></div>
+            <div class="kpi-subtext">All-time minimum resting daily average</div>
+          </div>
+
+          <div class="kpi-card accent-cyan">
+            <div class="kpi-header">
+              <span class="kpi-label">Days Tracked</span>
+              <div class="kpi-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect width="18" height="18" x="3" y="4" rx="2" ry="2"/>
+                  <line x1="16" x2="16" y1="2" y2="6"/>
+                  <line x1="8" x2="8" y1="2" y2="6"/>
+                  <line x1="3" x2="21" y1="10" y2="10"/>
+                </svg>
+              </div>
+            </div>
+            <div class="kpi-value"><span id="kpi-days">--</span> <small>days</small></div>
+            <div class="kpi-subtext" id="kpi-date-range">From start to latest export</div>
+          </div>
+
+          <div class="kpi-card accent-violet">
+            <div class="kpi-header">
+              <span class="kpi-label">Latest Heartbeat</span>
+              <div class="kpi-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                </svg>
+              </div>
+            </div>
+            <div class="kpi-value"><span id="kpi-latest-bpm">--</span> <small>BPM</small></div>
+            <div class="kpi-subtext" id="kpi-latest-time">Timestamp</div>
+          </div>
+        </div>
+
+        <!-- Main Heart Rate Chart -->
+        <div class="chart-card">
+          <div class="chart-header">
+            <div>
+              <h3>Resting Heart Rate Over Time</h3>
+              <p class="chart-desc">Hierarchical multi-stage resampling (Minute → Hour → Day → Week → Month) eliminating workout burst bias.</p>
+              <div class="chart-toolbar-hint">
+                <span class="hint-pill">🖱️ Drag: Pan</span>
+                <span class="hint-pill">🔍 Wheel: Zoom Time (X)</span>
+                <span class="hint-pill">↕️ Shift+Wheel / Right Slider: Zoom Y</span>
+                <span class="hint-pill">⤧ Top-Right: Box Zoom & Reset</span>
+              </div>
+            </div>
+            <div class="chart-actions">
+              <div class="toggle-pills" id="hr-series-toggle">
+                <button class="pill active" data-series="all">All Views</button>
+                <button class="pill" data-series="daily">Daily Only</button>
+                <button class="pill" data-series="weekly">Weekly Only</button>
+                <button class="pill" data-series="monthly">Monthly Only</button>
+              </div>
+            </div>
+          </div>
+          <div class="chart-body" id="chart-hr-averages" style="height: 440px;"></div>
+        </div>
+
+        <!-- Sub Tables -->
+        <div class="tables-split-grid">
+          <div class="table-card">
+            <div class="table-card-header">
+              <h4>Monthly Averages</h4>
+              <span class="badge" id="monthly-count-badge">0 months</span>
+            </div>
+            <div class="table-scroll-container">
+              <table class="data-table" id="table-monthly">
+                <thead>
+                  <tr>
+                    <th>Month</th>
+                    <th class="num-col">Avg BPM</th>
+                    <th>Trend</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="table-card">
+            <div class="table-card-header">
+              <h4>Weekly Averages (Ending Sunday)</h4>
+              <span class="badge" id="weekly-count-badge">0 weeks</span>
+            </div>
+            <div class="table-scroll-container">
+              <table class="data-table" id="table-weekly">
+                <thead>
+                  <tr>
+                    <th>Week</th>
+                    <th class="num-col">Avg BPM</th>
+                    <th>Indicator</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 2: Running Economy & Sessions -->
+      <section id="tab-running" class="tab-panel">
+        <!-- Running KPI Cards -->
+        <div class="kpi-grid">
+          <div class="kpi-card accent-emerald">
+            <div class="kpi-header">
+              <span class="kpi-label">Running Volume</span>
+              <div class="kpi-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/>
+                </svg>
+              </div>
+            </div>
+            <div class="kpi-value"><span id="kpi-total-km">--</span> <small>km</small></div>
+            <div class="kpi-subtext"><span id="kpi-total-runs">--</span> runs across <span id="kpi-total-hours">--</span> hrs</div>
+          </div>
+
+          <div class="kpi-card accent-cyan">
+            <div class="kpi-header">
+              <span class="kpi-label">Efficiency Factor (EF)</span>
+              <div class="kpi-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                </svg>
+              </div>
+            </div>
+            <div class="kpi-value"><span id="kpi-avg-ef">--</span></div>
+            <div class="kpi-subtext">Speed (m/min) / Heart Rate (BPM)</div>
+          </div>
+
+          <div class="kpi-card accent-violet">
+            <div class="kpi-header">
+              <span class="kpi-label">Aerobic Decoupling</span>
+              <div class="kpi-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M18 20V10M12 20V4M6 20v-6"/>
+                </svg>
+              </div>
+            </div>
+            <div class="kpi-value"><span id="kpi-avg-drift">--</span> <small>%</small></div>
+            <div class="kpi-subtext" id="kpi-drift-badge">Cardiac drift between H1 and H2</div>
+          </div>
+
+          <div class="kpi-card accent-blue">
+            <div class="kpi-header">
+              <span class="kpi-label">Cadence & Stride</span>
+              <div class="kpi-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"/>
+                </svg>
+              </div>
+            </div>
+            <div class="kpi-value"><span id="kpi-avg-cadence">--</span> <small>SPM</small></div>
+            <div class="kpi-subtext">Avg stride: <strong id="kpi-avg-stride">--</strong> m</div>
+          </div>
+        </div>
+
+        <!-- Interaction Guide Banner matching Bokeh functionality -->
+        <div class="chart-toolbar-hint" style="margin-bottom: 1rem;">
+          <span class="hint-pill">🖱️ Drag: Pan Time (X)</span>
+          <span class="hint-pill">🔍 Wheel: Zoom Time (X)</span>
+          <span class="hint-pill">↕️ Right Slider / Shift+Wheel: Zoom Y Independently</span>
+          <span class="hint-pill">⤧ Top-Right: Box Zoom (X & Y) & Reset</span>
+          <span class="hint-pill">⏱️ All 4 Subplots Linked in Time</span>
+        </div>
+
+        <!-- Synchronized Multi-Chart Dashboard -->
+        <div class="charts-stack">
+          <!-- Plot 1: Efficiency Factor -->
+          <div class="chart-card">
+            <div class="chart-header">
+              <div>
+                <h3>1. Running Efficiency Factor (EF) Over Time</h3>
+                <p class="chart-desc">Tracks aerobic economy (<span class="code">Speed [m/min] / Avg BPM</span>). Higher values denote faster pace at lower heart rates.</p>
+              </div>
+              <div class="metric-chip emerald">Aerobic Economy</div>
+            </div>
+            <div class="chart-body" id="chart-ef" style="height: 250px;"></div>
+          </div>
+
+          <!-- Plot 2: Aerobic Decoupling (Cardiac Drift %) -->
+          <div class="chart-card">
+            <div class="chart-header">
+              <div>
+                <h3>2. Aerobic Decoupling (Cardiac Drift %)</h3>
+                <p class="chart-desc">Compares H1 vs H2 efficiency (<span class="code">(1 - EF2 / EF1) &times; 100</span>). Below 5% indicates robust aerobic endurance foundation.</p>
+              </div>
+              <div class="metric-chip violet">Decoupling (Threshold: &le; 5.0%)</div>
+            </div>
+            <div class="chart-body" id="chart-drift" style="height: 240px;"></div>
+          </div>
+
+          <!-- Plot 3: Cadence -->
+          <div class="chart-card">
+            <div class="chart-header">
+              <div>
+                <h3>3. Running Cadence (Steps per Minute)</h3>
+                <p class="chart-desc">Calculated directly from cadence sensors with high-resolution step record fallback.</p>
+              </div>
+              <div class="metric-chip cyan">Cadence (SPM)</div>
+            </div>
+            <div class="chart-body" id="chart-cadence" style="height: 230px;"></div>
+          </div>
+
+          <!-- Plot 4: Stride Length -->
+          <div class="chart-card">
+            <div class="chart-header">
+              <div>
+                <h3>4. Stride Length (Meters)</h3>
+                <p class="chart-desc">Derived from distance and step rate over time.</p>
+              </div>
+              <div class="metric-chip blue">Stride Length (m)</div>
+            </div>
+            <div class="chart-body" id="chart-stride" style="height: 230px;"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 3: Running Sessions Explorer Table -->
+      <section id="tab-table" class="tab-panel">
+        <div class="table-card full-width">
+          <div class="table-toolbar">
+            <div class="search-box">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
+              </svg>
+              <input type="text" id="table-search-input" placeholder="Search by date, pace, distance...">
+            </div>
+
+            <div class="toolbar-stats">
+              Showing <span id="table-row-count">0</span> sessions
+            </div>
+          </div>
+
+          <div class="table-scroll-container max-height-table">
+            <table class="data-table interactive-table" id="table-runs-explorer">
+              <thead>
+                <tr>
+                  <th data-sort="date">Date <span class="sort-icon"></span></th>
+                  <th data-sort="duration_min" class="num-col">Duration <span class="sort-icon"></span></th>
+                  <th data-sort="distance_km" class="num-col">Dist (km) <span class="sort-icon"></span></th>
+                  <th data-sort="pace_min_km" class="num-col">Pace <span class="sort-icon"></span></th>
+                  <th data-sort="speed_kmh" class="num-col">Speed <span class="sort-icon"></span></th>
+                  <th class="num-col">Speed H1 / H2</th>
+                  <th data-sort="avg_bpm" class="num-col">Avg HR <span class="sort-icon"></span></th>
+                  <th class="num-col">HR H1 / H2</th>
+                  <th data-sort="cadence" class="num-col">Cadence <span class="sort-icon"></span></th>
+                  <th data-sort="stride_m" class="num-col">Stride <span class="sort-icon"></span></th>
+                  <th data-sort="ef" class="num-col">EF <span class="sort-icon"></span></th>
+                  <th data-sort="drift_pct" class="num-col">Drift % <span class="sort-icon"></span></th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="runs-table-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 4: Native Bokeh View -->
+      <section id="tab-bokeh" class="tab-panel">
+        <div class="table-card full-width" style="padding: 1.25rem;">
+          <div class="table-toolbar" style="margin-bottom: 0.75rem;">
+            <div>
+              <h4 style="font-size: 1rem; font-weight: 600;">Native Bokeh Dashboard</h4>
+              <p class="chart-desc">Full Bokeh visualization with the original Bokeh interactive toolbar (pan, wheel zoom, box zoom, reset, save).</p>
+            </div>
+            <div>
+              <a href="/bokeh" target="_blank" class="view-btn" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px;padding:0.4rem 0.85rem;font-size:0.8rem;">
+                <span>Open in Fullscreen Tab</span>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+              </a>
+            </div>
+          </div>
+          <div style="border-radius: var(--radius-md); overflow: hidden; border: 1px solid var(--border-color); background: #ffffff;">
+            <iframe id="bokeh-frame" src="/bokeh" style="width: 100%; height: 900px; border: none; display: block;"></iframe>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Run Split Detail Modal -->
+    <div class="modal-backdrop" id="run-modal">
+      <div class="modal-dialog">
+        <div class="modal-header">
+          <div>
+            <h3 id="modal-run-title">Run Session Details</h3>
+            <span class="modal-subtitle" id="modal-run-date">--</span>
+          </div>
+          <button class="modal-close-btn" id="modal-close-btn">&times;</button>
+        </div>
+        <div class="modal-body" id="modal-body">
+          <!-- Dynamic Run Split Inspector Content -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

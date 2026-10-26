@@ -72,6 +72,37 @@ class TestHealthConnectMetrics(unittest.TestCase):
         # Stride = (5000 / 30) / 160 = 1.04 m
         self.assertEqual(row["stride_m"], 1.04)
 
+    def test_cadence_with_pause_split(self):
+        # 30 min run (10:00 to 10:30) with 2 min pause in H2 (pause_h1=0, pause_h2=120,000 ms)
+        st = pd.Timestamp("2026-06-01 10:00:00").value // 10**6
+        et = pd.Timestamp("2026-06-01 10:30:00").value // 10**6
+        runs = pd.DataFrame([{
+            "row_id": 1,
+            "app_info_id": 1,
+            "start_time": st,
+            "end_time": et,
+            "exercise_type": 33,
+            "title": "Running",
+            "distance_meters": 5000.0,
+            "pause_ms": 120000,
+            "pause_h1_ms": 0,
+            "pause_h2_ms": 120000,
+        }])
+
+        # Steps: 1500 steps in H1 (15 min active -> 100 spm), 1300 steps in H2 (13 min active -> 100 spm)
+        step_records = [
+            {"app_info_id": 1, "start_time": st, "end_time": st + 15 * 60 * 1000, "count": 1500},
+            {"app_info_id": 1, "start_time": st + 15 * 60 * 1000, "end_time": et, "count": 1300},
+        ]
+        steps_df = pd.DataFrame(step_records)
+
+        res = calculate_running_metrics(runs, steps_df=steps_df)
+        row = res.iloc[0]
+        self.assertEqual(row["duration_min"], 28.0)
+        self.assertEqual(row["cadence"], 100.0)
+        self.assertEqual(row["cadence1"], 100.0)
+        self.assertEqual(row["cadence2"], 100.0)
+
     def test_open_database_file_and_zip(self):
         import sqlite3
         import tempfile

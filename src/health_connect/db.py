@@ -178,9 +178,27 @@ def fetch_running_raw_data(conn: sqlite3.Connection):
         )"""
 
     pause_expr = "0"
+    pause_h1_expr = "0"
+    pause_h2_expr = "0"
     if 'exercise_segments_table' in tables:
         pause_expr = """coalesce(
             (SELECT sum(segment_end_time - segment_start_time) FROM exercise_segments_table s WHERE s.parent_key = e.row_id AND s.segment_type = 67),
+            0
+        )"""
+        pause_h1_expr = """coalesce(
+            (SELECT sum(
+                CASE WHEN min((e.start_time + e.end_time)/2, s.segment_end_time) > max(e.start_time, s.segment_start_time)
+                     THEN min((e.start_time + e.end_time)/2, s.segment_end_time) - max(e.start_time, s.segment_start_time)
+                     ELSE 0 END
+            ) FROM exercise_segments_table s WHERE s.parent_key = e.row_id AND s.segment_type = 67),
+            0
+        )"""
+        pause_h2_expr = """coalesce(
+            (SELECT sum(
+                CASE WHEN min(e.end_time, s.segment_end_time) > max((e.start_time + e.end_time)/2, s.segment_start_time)
+                     THEN min(e.end_time, s.segment_end_time) - max((e.start_time + e.end_time)/2, s.segment_start_time)
+                     ELSE 0 END
+            ) FROM exercise_segments_table s WHERE s.parent_key = e.row_id AND s.segment_type = 67),
             0
         )"""
 
@@ -194,7 +212,9 @@ def fetch_running_raw_data(conn: sqlite3.Connection):
             e.exercise_type,
             coalesce(e.title, 'Running') as title,
             {dist_expr} as distance_meters,
-            {pause_expr} as pause_ms
+            {pause_expr} as pause_ms,
+            {pause_h1_expr} as pause_h1_ms,
+            {pause_h2_expr} as pause_h2_ms
         FROM exercise_session_record_table e
         WHERE e.exercise_type IN (33, 34)
            OR lower(coalesce(e.title, '')) LIKE '%lauf%'

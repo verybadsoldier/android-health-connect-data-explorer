@@ -55,6 +55,8 @@ def calculate_running_metrics(
     runs = runs.copy()
     runs['start_dt'] = pd.to_datetime(runs['start_time'], unit='ms')
     runs['end_dt'] = pd.to_datetime(runs['end_time'], unit='ms')
+    if 'pause_ms' not in runs.columns:
+        runs['pause_ms'] = 0
     runs['total_duration_min'] = (runs['end_time'] - runs['start_time']) / 1000.0 / 60.0
     runs['pause_min'] = runs['pause_ms'] / 1000.0 / 60.0
     runs['duration_min'] = np.where(
@@ -62,6 +64,12 @@ def calculate_running_metrics(
         runs['total_duration_min'] - runs['pause_min'],
         runs['total_duration_min']
     )
+    if 'pause_h1_ms' in runs.columns and 'pause_h2_ms' in runs.columns:
+        runs['pause_h1_min'] = runs['pause_h1_ms'] / 1000.0 / 60.0
+        runs['pause_h2_min'] = runs['pause_h2_ms'] / 1000.0 / 60.0
+    else:
+        runs['pause_h1_min'] = np.where(runs['pause_min'] > 0, runs['pause_min'] / 2.0, 0.0)
+        runs['pause_h2_min'] = np.where(runs['pause_min'] > 0, runs['pause_min'] / 2.0, 0.0)
     runs['distance_km'] = runs['distance_meters'] / 1000.0
     runs['pace_min_km'] = runs['duration_min'] / runs['distance_km']
     runs['speed_kmh'] = runs['distance_km'] / (runs['duration_min'] / 60.0)
@@ -94,8 +102,12 @@ def calculate_running_metrics(
             rst = runs_st[i]
             ret = runs_et[i]
             rmd = runs_md[i]
-            dur_h1 = (rmd - rst) / 60000.0
-            dur_h2 = (ret - rmd) / 60000.0
+            p_h1 = runs['pause_h1_min'].iloc[i]
+            p_h2 = runs['pause_h2_min'].iloc[i]
+            tot_dur_h1 = (rmd - rst) / 60000.0
+            tot_dur_h2 = (ret - rmd) / 60000.0
+            dur_h1 = max(0.001, tot_dur_h1 - p_h1) if p_h1 < tot_dur_h1 else tot_dur_h1
+            dur_h2 = max(0.001, tot_dur_h2 - p_h2) if p_h2 < tot_dur_h2 else tot_dur_h2
 
             idx_lo = np.searchsorted(st_arr, rst - 600000, side='left')
             idx_hi = np.searchsorted(st_arr, ret, side='right')
